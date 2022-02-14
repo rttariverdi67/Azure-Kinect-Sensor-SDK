@@ -9,3 +9,4 @@ add_subdirectory(k4arecorder)
 add_subdirectory(updater)
 
 add_subdirectory(mrob_imu_data_extractor)
+add_subdirectory(mrob_timestamps_extractor)
