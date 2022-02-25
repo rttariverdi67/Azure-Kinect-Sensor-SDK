@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 
-add_executable(mrob_timestamps_extractor main.c ${CMAKE_CURRENT_BINARY_DIR}/version.rc)
+add_executable(mrob_timestamps_extractor main.cpp ${CMAKE_CURRENT_BINARY_DIR}/version.rc)
 
 target_link_libraries(mrob_timestamps_extractor PRIVATE
     k4a::k4a

@@ -6,6 +6,15 @@
 #include <k4a/k4a.h>
 #include <k4arecord/playback.h>
 
+//#include <filesystem.hpp>
+//#include <iostream>
+//#include <experimental/filesystem>
+//namespace fs = std::experimental::filesystem;
+
+#include <iostream>
+#include <string>
+using namespace std;
+
 typedef struct
 {
     char *filename;
@@ -39,7 +48,7 @@ static uint64_t first_capture_timestamp(k4a_capture_t capture)
     return min_timestamp;
 }
 
-static void print_capture_info(int i, recording_t *file)
+/*static void print_capture_info(int i, recording_t *file)
 {
     k4a_image_t images[3];
     images[0] = k4a_capture_get_color_image(file->capture);
@@ -62,13 +71,15 @@ static void print_capture_info(int i, recording_t *file)
         }
     }
     printf("\n");
-}
+}*/
+
+
 
 int main(int argc, char **argv)
 {
     if (argc < 3)
     {
-        printf("Usage: mrob_timestamps_extraction input.mkv output.csv\n");
+        printf("Usage: mrob_timestamps_extraction input.mkv output_path\n");
         return 1;
     }
 
@@ -77,8 +88,8 @@ int main(int argc, char **argv)
     k4a_result_t result = K4A_RESULT_SUCCEEDED;
 
     // Allocate memory to store the state of N recordings.
-    recording_t *files = malloc(sizeof(recording_t) * file_count);
-    printf("To allocate memory for playback (%zu bytes)\n", sizeof(recording_t) * file_count);
+    recording_t *files = (recording_t *)malloc(sizeof(recording_t) * file_count);
+    //printf("To allocate memory for playback (%zu bytes)\n", sizeof(recording_t) * file_count);
     if (files == NULL)
     {
         printf("Failed to allocate memory for playback (%zu bytes)\n", sizeof(recording_t) * file_count);
@@ -115,18 +126,22 @@ int main(int argc, char **argv)
 
     if (result == K4A_RESULT_SUCCEEDED)
     {
-        printf("%-32s  %12s  %12s  %12s\n", "Source file", "COLOR", "DEPTH", "IR");
-        printf("==========================================================================\n");
+        //printf("%-32s  %12s  %12s  %12s\n", "Source file", "COLOR", "DEPTH", "IR");
+        //printf("==========================================================================\n");
 
+        string output_path = string(argv[2]) + string("/color_timestamps.csv");
         FILE *fpt_color, *fpt_depth, *fpt_ir;
-        fpt_color = fopen("color_timestamps.csv", "w+");
+        fpt_color = fopen(output_path.c_str(), "w+");
         fprintf(fpt_color, "timestamp_us\n");
 
-        fpt_depth = fopen("depth_timestamps.csv", "w+");
+        output_path = string(argv[2]) + string("/depth_timestamps.csv");
+        fpt_depth = fopen(output_path.c_str(), "w+");
         fprintf(fpt_depth, "timestamp_us\n");
 
-        fpt_ir = fopen("ir_timestamps.csv", "w+");
+        output_path = string(argv[2]) + string("/ir_timestamps.csv");
+        fpt_ir = fopen(output_path.c_str(), "w+");
         fprintf(fpt_ir, "timestamp_us\n");
+
 
         int frame = 0;
         while(true)
@@ -179,7 +194,7 @@ int main(int argc, char **argv)
 
 
 
-            print_capture_info(frame, min_file);
+            //print_capture_info(frame, min_file);
             
 
             k4a_capture_release(min_file->capture);
@@ -193,9 +208,6 @@ int main(int argc, char **argv)
                     printf("ERROR: Failed to read next capture from file: %s\n", min_file->filename);
                     //result = K4A_RESULT_FAILED;
 
-                }
-                else {
-                    printf("The end of the data stream was reached. : %s\n", min_file->filename);
                 }
                 break;
             }
