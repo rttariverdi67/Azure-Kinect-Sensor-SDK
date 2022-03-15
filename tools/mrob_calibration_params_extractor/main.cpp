@@ -52,7 +52,6 @@ StringBuffer parse_calib_params(k4a_calibration_camera_t calib)//, const char* c
                     writer.EndObject();
                     writer.Key("parameters_as_list");
                     writer.StartArray();
-                    std::cout << std::endl;
                     for (unsigned i = 0; i < 14; i++) {
                         writer.Double(calib.intrinsics.parameters.v[i]);
                     }
@@ -68,10 +67,10 @@ StringBuffer parse_calib_params(k4a_calibration_camera_t calib)//, const char* c
                     writer.Double(calib.extrinsics.rotation[i]);
                 }
                 writer.EndArray();
-                writer.Key("translation");
+                writer.Key("translation_in_meters");
                 writer.StartArray();
                 for (unsigned i = 0; i < 3; i++) {
-                    writer.Double(calib.extrinsics.translation[i]);
+                    writer.Double(calib.extrinsics.translation[i]/1000.0);
                 }
                 writer.EndArray();
             writer.EndObject();
