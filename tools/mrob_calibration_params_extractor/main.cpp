@@ -7,16 +7,18 @@
 #include <k4arecord/playback.h>
 
 #include "rapidjson/document.h"
-#include "rapidjson/writer.h"
+#include "rapidjson/prettywriter.h" //#include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 #include <iostream>
- 
+
+#include <fstream>
+
 using namespace rapidjson;
 
 StringBuffer parse_calib_params(k4a_calibration_camera_t calib)//, const char* camera_type) 
 {
     StringBuffer s;
-    Writer<StringBuffer> writer(s);
+    PrettyWriter<StringBuffer> writer(s);
 
     writer.StartObject();
         //writer.Key(camera_type);
@@ -92,7 +94,7 @@ int main(int argc, char **argv)
     //printf(argv[1]);
 
     if (argc < 3) {
-        printf("Usage: mrob_imu_data_extractor input.mkv output.csv\n");
+        printf("Usage: mrob_imu_data_extractor input.mkv output.json\n");
         return 1;
     }
 
@@ -112,14 +114,14 @@ int main(int argc, char **argv)
     
     k4a_calibration_camera_t calib_depth = calib.depth_camera_calibration;
     k4a_calibration_camera_t calib_color = calib.color_camera_calibration;
-
-    //printf("%f", calib_depth.extrinsics.rotation[0]);
     
     StringBuffer s_d = parse_calib_params(calib_depth);
     StringBuffer s_c = parse_calib_params(calib_color);
+
+    k4a_playback_close(playback_handle);
     
     StringBuffer s;
-    Writer<StringBuffer> writer(s);
+    PrettyWriter<StringBuffer> writer(s);
     s.ShrinkToFit();
     Reader reader;
     writer.StartObject();
@@ -132,59 +134,12 @@ int main(int argc, char **argv)
         reader.Parse<0>(ss_c, writer);
     writer.EndObject();
     
-    std::cout << s_d.GetString() << std::endl;
-    std::cout << s_c.GetString() << std::endl;
-    std::cout << s.GetString() << std::endl;
+    //std::cout << s_d.GetString() << std::endl;
+    //std::cout << s_c.GetString() << std::endl;
+    //std::cout << s.GetString() << std::endl;
 
+    std::ofstream out(argv[2]);
+    out << s.GetString();
+    out.close();
 
-
-    /*StringBuffer s;
-    Writer<StringBuffer> writer(s);
-    
-    writer.StartObject();               // Between StartObject()/EndObject(), 
-    writer.Key("hello");                // output a key,
-    writer.String("world");             // follow by a value.
-    writer.Key("t");
-    writer.Bool(true);
-    writer.Key("f");
-    writer.Bool(false);
-    writer.Key("n");
-    writer.Null();
-    writer.Key("i");
-    writer.Uint(123);
-    writer.Key("pi");
-    writer.Double(3.1416);
-    writer.Key("a");
-    writer.StartArray();                // Between StartArray()/EndArray(),
-    for (unsigned i = 0; i < 4; i++)
-        writer.Uint(i);                 // all values are elements of the array.
-    writer.EndArray();
-    writer.EndObject();
-
-    // {"hello":"world","t":true,"f":false,"n":null,"i":123,"pi":3.1416,"a":[0,1,2,3]}
-    std::cout << s.GetString() << std::endl;*/
-
-
-    k4a_playback_close(playback_handle);
 }
-
-/*
-    // 1. Parse a JSON string into DOM.
-    const char* json = "{\"project\":\"rapidjson\",\"stars\":10}";
-    Document d;
-    d.Parse(json);
- 
-    // 2. Modify it by DOM.
-    Value& s_ = d["stars"];
-    s_.SetInt(s_.GetInt() + 1);
-    //d["stars"] = "kek";
-    
-    // 3. Stringify the DOM
-    StringBuffer buffer;
-    Writer<StringBuffer> writer_(buffer);
-    d.Accept(writer_);
- 
-    // Output {"project":"rapidjson","stars":11}
-    std::cout << buffer.GetString() << std::endl;
-
-*/
