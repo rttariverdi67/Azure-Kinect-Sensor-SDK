@@ -56,7 +56,8 @@ int do_recording(uint8_t device_index,
                  k4a_device_configuration_t *device_config,
                  bool record_imu,
                  int32_t absoluteExposureValue,
-                 int32_t gain)
+                 int32_t gain,
+                 char *timestamps_table_filename)
 {
     seconds recording_length_seconds(recording_length);
     const uint32_t installed_devices = k4a_device_get_installed_count();
@@ -194,6 +195,14 @@ int do_recording(uint8_t device_index,
 
     steady_clock::time_point recording_start = steady_clock::now();
     int32_t timeout_ms = 1000 / camera_fps;
+
+    ////////////////////////////////////
+    FILE *fpt;
+    //fpt = fopen(argv[2], "w+");
+    fpt = fopen(timestamps_table_filename, "w+");
+    fprintf(fpt, "color_ts_us,depth_ts_us,global_ts_us\n");
+    ////////////////////////////////////
+
     do
     {
         result = k4a_device_get_capture(device, &capture, timeout_ms);
@@ -209,11 +218,18 @@ int do_recording(uint8_t device_index,
         CHECK(k4a_record_write_capture(recording, capture), device);
 
         ///////////////////////////////
+        uint64_t global_timestamp = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
 
         k4a_image_t color_image = k4a_capture_get_color_image(capture);
         k4a_image_t depth_image = k4a_capture_get_depth_image(capture);
 
+
         if (color_image && depth_image) {
+
+            uint64_t color_image_timestamp = k4a_image_get_device_timestamp_usec(color_image);
+            uint64_t depth_image_timestamp = k4a_image_get_device_timestamp_usec(depth_image);
+        
+            fprintf(fpt, "%ld,%ld,%ld\n", color_image_timestamp, depth_image_timestamp, global_timestamp);
         
             uint8_t * buffer = k4a_image_get_buffer(color_image);
             uint32_t size = k4a_image_get_size(color_image);

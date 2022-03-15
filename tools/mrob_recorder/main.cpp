@@ -125,6 +125,7 @@ int main(int argc, char **argv)
     int absoluteExposureValue = defaultExposureAuto;
     int gain = defaultGainAuto;
     char *recording_filename;
+    char *timestamps_table_filename;
 
     CmdParser::OptionParser cmd_parser;
     cmd_parser.RegisterOption("-h|--help", "Prints this help", [&]() {
@@ -368,13 +369,14 @@ int main(int argc, char **argv)
         std::cerr << e.option() << ": " << e.what() << std::endl;
         return 1;
     }
-    if (args_left == 1)
+    if (args_left == 2)
     {
-        recording_filename = argv[argc - 1];
+        recording_filename = argv[argc - 2];
+        timestamps_table_filename = argv[argc - 1];
     }
     else
     {
-        std::cout << "k4arecorder [options] output.mkv" << std::endl << std::endl;
+        std::cout << "k4arecorder [options] output.mkv output.csv" << std::endl << std::endl;
         cmd_parser.PrintOptions();
         return 0;
     }
@@ -433,5 +435,6 @@ int main(int argc, char **argv)
                         &device_config,
                         recording_imu_enabled,
                         absoluteExposureValue,
-                        gain);
+                        gain,
+                        timestamps_table_filename);
 }
