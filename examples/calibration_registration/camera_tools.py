@@ -648,7 +648,7 @@ def register(img_a: str,
        calib_a: str,
        calib_b: str,
        out_dir: str,
-       rms_threshold:float=1) -> Tuple[np.array, np.array, float]:
+       rms_threshold:float=0.001) -> Tuple[np.array, np.array, float]:
   """Get rotation and translation of camera b in terms of camera a.
 
   Args:
@@ -733,7 +733,7 @@ def register(img_a: str,
                          calib_b,
                          pose_a,
                          rmat_b_to_a.transpose(),
-                         tvec_b_to_a*-1)
+                         rmat_b_to_a.transpose() @ tvec_b_to_a*-1)
   if rms2_rad > rms_threshold:
     raise RegistrationError("Registration error from B to A too large.")
 
