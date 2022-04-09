@@ -228,29 +228,28 @@ int do_recording(uint8_t device_index,
 
             uint64_t color_image_timestamp = k4a_image_get_device_timestamp_usec(color_image);
             uint64_t depth_image_timestamp = k4a_image_get_device_timestamp_usec(depth_image);
-        
+
             fprintf(fpt, "%ld,%ld,%ld\n", color_image_timestamp, depth_image_timestamp, global_timestamp);
-        
+
             uint8_t * buffer = k4a_image_get_buffer(color_image);
             uint32_t size = k4a_image_get_size(color_image);
 
             FILE * pFile;
             char filename_buffer[50];
 
-            sprintf (filename_buffer, "/tmp/%s_color.jpg", serial_number_buffer);
+            sprintf (filename_buffer, "/mnt/mrob_tmpfs/%s_color.jpg", serial_number_buffer);
             pFile = fopen (filename_buffer, "w");
-            
+
             if (pFile!=NULL)
             {
                 fwrite(buffer, 1, size, pFile);
                 fclose (pFile);
             }
 
-            
             buffer = k4a_image_get_buffer(depth_image);
             size = k4a_image_get_size(depth_image);
-            
-            sprintf (filename_buffer, "/tmp/%s_depth.bin", serial_number_buffer);
+
+            sprintf (filename_buffer, "/mnt/mrob_tmpfs/%s_depth.bin", serial_number_buffer);
             pFile = fopen (filename_buffer, "w");
 
             if (pFile!=NULL)
@@ -259,9 +258,12 @@ int do_recording(uint8_t device_index,
                 fclose (pFile);
             }
         }
-        //k4a_image_release(color_image);
-        //k4a_image_release(depth_image);
-
+        if (color_image) {
+            k4a_image_release(color_image);
+        }
+        if (depth_image) {
+            k4a_image_release(depth_image);
+        }
         /////////////////////
 
         k4a_capture_release(capture);
