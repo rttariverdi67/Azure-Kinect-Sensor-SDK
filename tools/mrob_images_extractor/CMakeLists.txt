@@ -1,6 +1,9 @@
 # Copyright (c) Microsoft Corporation. All rights reserved.
 # Licensed under the MIT License.
 
+find_package(OpenCV)
+
+
 add_executable(mrob_images_extractor
     main.cpp
     transformation_helpers.cpp
@@ -10,6 +13,7 @@ target_link_libraries(mrob_images_extractor PRIVATE
     k4a::k4a
     k4a::k4arecord
     libjpeg-turbo::libjpeg-turbo
+    ${OpenCV_LIBS}
     )
 
 # Include ${CMAKE_CURRENT_BINARY_DIR}/version.rc in the target's sources
