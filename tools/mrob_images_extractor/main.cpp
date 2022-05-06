@@ -77,10 +77,9 @@ void parallel_for(unsigned nb_elements,
 
 //extract(playback, &capture, output_path, transformation, transformed_depth_image, color_image_width_pixels, color_image_height_pixels, distortion, matrix, compression_params);
 
-bool extract(k4a_playback_t playback_handle, k4a_capture_t capture, const char * output_path, k4a_transformation_t transformation, k4a_image_t transformed_depth_image,
+bool extract(k4a_capture_t capture, const char * output_path, k4a_transformation_t transformation, k4a_image_t transformed_depth_image,
     int color_image_width_pixels, int color_image_height_pixels, cv::Mat distortion, cv::Matx33d matrix, std::vector<int> compression_params)
 {
-    
     k4a_image_t depth_image = NULL;
     k4a_image_t color_image = NULL;
 
@@ -148,12 +147,12 @@ bool extract(k4a_playback_t playback_handle, k4a_capture_t capture, const char *
         k4a_capture_release(capture);
     }
 
+    return true;
 }
 
 
 static int playback(char *input_path, const char * output_path)
 {
-    int return_code = 1;
     k4a_playback_t playback = NULL;
 
     k4a_calibration_t calibration;
@@ -161,7 +160,6 @@ static int playback(char *input_path, const char * output_path)
     k4a_calibration_camera_t calib_color;
     struct k4a_calibration_intrinsic_parameters_t::_param param;
 
-    k4a_capture_t capture = NULL;
     k4a_capture_t array_of_captures[CAPTURES_IN_BATCH];
     k4a_image_t array_of_transformed_depth_images[CAPTURES_IN_BATCH];
 
@@ -183,6 +181,7 @@ static int playback(char *input_path, const char * output_path)
     uint32_t i;
     uint32_t number_of_captures = 0;
     bool flag_to_finish = false;
+    bool array_of_extraction_results[CAPTURES_IN_BATCH];
 
     // Open recording
     result = k4a_playback_open(input_path, &playback);
@@ -243,7 +242,6 @@ static int playback(char *input_path, const char * output_path)
             }
         }
         number_of_captures = i;
-
         printf("%d captures, ", number_of_captures);
 
         //std::this_thread::sleep_for(std::chrono::seconds(10));
@@ -252,8 +250,16 @@ static int playback(char *input_path, const char * output_path)
 
         // The core loop
         parallel_for(number_of_captures, [&](int start, int end){ 
-            for(int i = start; i < end; ++i)
-                extract(playback, array_of_captures[i], output_path, transformation, array_of_transformed_depth_images[i], color_image_width_pixels, color_image_height_pixels, distortion, matrix, compression_params);
+            for(int i = start; i < end; ++i) {
+                array_of_extraction_results[i] = extract(array_of_captures[i], 
+                    output_path, transformation, array_of_transformed_depth_images[i], 
+                    color_image_width_pixels, color_image_height_pixels, distortion, matrix, compression_params);
+                if (array_of_extraction_results[i] == false) {
+                    printf("Extraction failed\n");
+                    // should be proper handling
+                }
+            }
+
         });
 
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
@@ -276,7 +282,6 @@ static int playback(char *input_path, const char * output_path)
     {
         k4a_transformation_destroy(transformation);
     }
-
     return 0;
 }
 
@@ -292,6 +297,6 @@ int main(int argc, char **argv)
     {
         return_code = playback(argv[1], argv[2]);
     }
-
+    printf("%d\n", return_code);
     return return_code;
 }
