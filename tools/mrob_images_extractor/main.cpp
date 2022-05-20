@@ -78,7 +78,8 @@ void parallel_for(unsigned nb_elements,
 //extract(playback, &capture, output_path, transformation, transformed_depth_image, color_image_width_pixels, color_image_height_pixels, distortion, matrix, compression_params);
 
 bool extract(k4a_capture_t capture, const char * output_path, k4a_transformation_t transformation, k4a_image_t transformed_depth_image,
-    int color_image_width_pixels, int color_image_height_pixels, cv::Mat distortion, cv::Matx33d matrix, std::vector<int> compression_params)
+    int color_image_width_pixels, int color_image_height_pixels, int depth_image_width_pixels, int depth_image_height_pixels, 
+    cv::Mat distortion, cv::Matx33d matrix, std::vector<int> compression_params, bool undist_project)
 {
     k4a_image_t depth_image = NULL;
     k4a_image_t color_image = NULL;
@@ -113,26 +114,48 @@ bool extract(k4a_capture_t capture, const char * output_path, k4a_transformation
     depth_timestamp = k4a_image_get_device_timestamp_usec(depth_image);
     sprintf (depth_filename, "%s/depth/%012ld.png", output_path, depth_timestamp);
 
-    if (K4A_RESULT_SUCCEEDED !=
-        k4a_transformation_depth_image_to_color_camera(transformation, depth_image, transformed_depth_image))
-    {
-        printf("Failed to compute transformed depth image\n");
-        return false;
+    if (!undist_project) {
+        FILE * pFile;
+
+        buffer = k4a_image_get_buffer(color_image);
+        size = k4a_image_get_size(color_image);
+
+        pFile = fopen (color_filename, "w");
+
+        if (pFile!=NULL)
+        {
+            fwrite(buffer, 1, size, pFile);
+            fclose (pFile);
+        }
+
+        buffer = k4a_image_get_buffer(depth_image);
+        size = k4a_image_get_size(depth_image);
+
+        img_array = cv::Mat(depth_image_height_pixels, depth_image_width_pixels, CV_16UC1, buffer);
+        cv::imwrite(depth_filename,  img_array);
     }
+    else {
+        if (K4A_RESULT_SUCCEEDED !=
+            k4a_transformation_depth_image_to_color_camera(transformation, depth_image, transformed_depth_image))
+        {
+            printf("Failed to compute transformed depth image\n");
+            return false;
+        }
 
-    buffer = k4a_image_get_buffer(color_image);
-    size = k4a_image_get_size(color_image);
-    
-    img_array = cv::imdecode(cv::Mat(1, size, CV_8UC1, buffer), cv::IMREAD_UNCHANGED);
-    cv::undistort(img_array, img_array_undistorted, matrix, distortion);
-    cv::imwrite(color_filename, img_array_undistorted, compression_params);
+        buffer = k4a_image_get_buffer(color_image);
+        size = k4a_image_get_size(color_image);
 
-    buffer = k4a_image_get_buffer(transformed_depth_image);
-    size = k4a_image_get_size(transformed_depth_image);
-    
-    img_array = cv::Mat(color_image_height_pixels, color_image_width_pixels, CV_16UC1, buffer);
-    cv::undistort(img_array, img_array_undistorted, matrix, distortion);
-    cv::imwrite(depth_filename,  img_array_undistorted);
+        img_array = cv::imdecode(cv::Mat(1, size, CV_8UC1, buffer), cv::IMREAD_UNCHANGED);
+        cv::undistort(img_array, img_array_undistorted, matrix, distortion);
+        cv::imwrite(color_filename, img_array_undistorted, compression_params);
+
+        buffer = k4a_image_get_buffer(transformed_depth_image);
+        size = k4a_image_get_size(transformed_depth_image);
+
+        img_array = cv::Mat(color_image_height_pixels, color_image_width_pixels, CV_16UC1, buffer);
+        cv::undistort(img_array, img_array_undistorted, matrix, distortion);
+        cv::imwrite(depth_filename,  img_array_undistorted);
+    }
 
     if (depth_image != NULL)
     {
@@ -151,13 +174,14 @@ bool extract(k4a_capture_t capture, const char * output_path, k4a_transformation
 }
 
 
-static int playback(char *input_path, const char * output_path)
+static int playback(char *input_path, const char * output_path, bool undist_project)
 {
     k4a_playback_t playback = NULL;
 
     k4a_calibration_t calibration;
     k4a_transformation_t transformation = NULL;
     k4a_calibration_camera_t calib_color;
+    k4a_calibration_camera_t calib_depth;
     struct k4a_calibration_intrinsic_parameters_t::_param param;
 
     k4a_capture_t array_of_captures[CAPTURES_IN_BATCH];
@@ -168,6 +192,9 @@ static int playback(char *input_path, const char * output_path)
 
     int color_image_width_pixels;
     int color_image_height_pixels;
+
+    int depth_image_width_pixels;
+    int depth_image_height_pixels;
 
     cv::Mat distortion;
     cv::Matx33d matrix;
@@ -202,6 +229,9 @@ static int playback(char *input_path, const char * output_path)
     calib_color = calibration.color_camera_calibration;
     color_image_width_pixels = calib_color.resolution_width;
     color_image_height_pixels = calib_color.resolution_height;
+    calib_depth = calibration.depth_camera_calibration;
+    depth_image_width_pixels = calib_depth.resolution_width;
+    depth_image_height_pixels = calib_depth.resolution_height;
     param = calib_color.intrinsics.parameters.param;
     distortion = (cv::Mat_<double>(8,1) << param.k1, param.k2, param.p1, param.p2, param.k3, param.k4, param.k5, param.k6);
     matrix = cv::Matx33d(param.fx, 0.0, param.cx, 0.0, param.fy, param.cy, 0.0, 0.0, 1.0);
@@ -253,7 +283,9 @@ static int playback(char *input_path, const char * output_path)
             for(int i = start; i < end; ++i) {
                 array_of_extraction_results[i] = extract(array_of_captures[i], 
                     output_path, transformation, array_of_transformed_depth_images[i], 
-                    color_image_width_pixels, color_image_height_pixels, distortion, matrix, compression_params);
+                    color_image_width_pixels, color_image_height_pixels, 
+                    depth_image_width_pixels, depth_image_height_pixels, 
+                    distortion, matrix, compression_params, undist_project);
                 if (array_of_extraction_results[i] == false) {
                     printf("Extraction failed\n");
                     // should be proper handling
@@ -289,14 +321,24 @@ int main(int argc, char **argv)
 {
     int return_code = 0;
 
-    if (argc != 3)
+    if (argc != 4)
     {
-        printf("Usage: mrob_images_extractor input.mkv output_path\n");
+        printf("Usage: mrob_images_extractor input.mkv output_path 0\n");
+        printf("   or: mrob_images_extractor input.mkv output_path 1\n");
+        printf("where -e means extract only, -p means extract, undistort, and project depth to color\n");
     }
     else
     {
-        return_code = playback(argv[1], argv[2]);
+        if (argv[3][0] == '0') {
+            return_code = playback(argv[1], argv[2], false);
+        }
+        else if (argv[3][0] == '1') {
+            return_code = playback(argv[1], argv[2], true);
+        }
+        else {
+            printf("Incorrect argument %s\n", argv[3]);
+            return 1;
+        }
     }
-    printf("%d\n", return_code);
     return return_code;
 }
