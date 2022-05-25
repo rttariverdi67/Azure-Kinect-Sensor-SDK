@@ -126,6 +126,7 @@ int main(int argc, char **argv)
     int gain = defaultGainAuto;
     char *recording_filename;
     char *timestamps_table_filename;
+    bool save_all_captures = true;
 
     CmdParser::OptionParser cmd_parser;
     cmd_parser.RegisterOption("-h|--help", "Prints this help", [&]() {
@@ -358,6 +359,25 @@ int main(int argc, char **argv)
                                   }
                                   gain = gainSetting;
                               });
+        cmd_parser.RegisterOption("--save-all-captures",
+                              "Specify either save all captures (normal working mode) or just beginning for streaming only. (TRUE, FALSE, default: TRUE)",
+                              1,
+                              [&](const std::vector<char *> &args) {
+                                  if (string_compare(args[0], "true") == 0)
+                                  {
+                                      save_all_captures = true;
+                                  }
+                                  else if (string_compare(args[0], "false") == 0)
+                                  {
+                                      save_all_captures = false;
+                                  }
+                                  else
+                                  {
+                                      std::ostringstream str;
+                                      str << "Unknown capture saving mode specified: " << args[0];
+                                      throw std::runtime_error(str.str());
+                                  }
+                              });
 
     int args_left = 0;
     try
@@ -436,5 +456,6 @@ int main(int argc, char **argv)
                         recording_imu_enabled,
                         absoluteExposureValue,
                         gain,
-                        timestamps_table_filename);
+                        timestamps_table_filename,
+                        save_all_captures);
 }

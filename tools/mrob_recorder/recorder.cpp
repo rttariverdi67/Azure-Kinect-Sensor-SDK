@@ -13,6 +13,14 @@
 
 #include <stdio.h>
 
+#include <boost/filesystem.hpp>
+
+#define TEMP_IMAGES_PATHNAME "/mnt/mrob_tmpfs/images/"
+
+#define NUM_OF_TEMPORAL_IMAGES 3
+#define NUM_OF_CAPTURES_TO_SAVE 30
+
+
 using namespace std::chrono;
 
 inline static uint32_t k4a_convert_fps_to_uint(k4a_fps_t fps)
@@ -57,7 +65,8 @@ int do_recording(uint8_t device_index,
                  bool record_imu,
                  int32_t absoluteExposureValue,
                  int32_t gain,
-                 char *timestamps_table_filename)
+                 char *timestamps_table_filename,
+                 bool save_all_captures)
 {
     seconds recording_length_seconds(recording_length);
     const uint32_t installed_devices = k4a_device_get_installed_count();
@@ -205,6 +214,22 @@ int do_recording(uint8_t device_index,
     //fpt = fopen(argv[2], "w+");
     fpt = fopen(timestamps_table_filename, "w+");
     fprintf(fpt, "color_ts_us,depth_ts_us,global_ts_us\n");
+
+    uint8_t current_capture_specifier = 0;
+    uint32_t capture_number = 0;
+
+
+    char device_pathname_buffer[100];
+    sprintf (device_pathname_buffer, "%s%s/", TEMP_IMAGES_PATHNAME, serial_number_buffer);
+    boost::filesystem::remove_all(device_pathname_buffer);
+
+    char color_images_pathname_buffer[100];
+    sprintf (color_images_pathname_buffer, "%scolor/", device_pathname_buffer);
+    boost::filesystem::create_directories(color_images_pathname_buffer);
+
+    char depth_images_pathname_buffer[100];
+    sprintf (depth_images_pathname_buffer, "%sdepth/", device_pathname_buffer);
+    boost::filesystem::create_directory(depth_images_pathname_buffer);
     ////////////////////////////////////
 
     do
@@ -219,7 +244,16 @@ int do_recording(uint8_t device_index,
             std::cerr << "Runtime error: k4a_device_get_capture() returned " << result << std::endl;
             break;
         }
-        CHECK(k4a_record_write_capture(recording, capture), device);
+
+        if(save_all_captures) {
+            CHECK(k4a_record_write_capture(recording, capture), device);
+        }
+        else {
+            capture_number++;
+            if (capture_number < NUM_OF_CAPTURES_TO_SAVE) {
+                CHECK(k4a_record_write_capture(recording, capture), device);
+            }
+        }
 
         ///////////////////////////////
         uint64_t global_timestamp = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
@@ -229,6 +263,11 @@ int do_recording(uint8_t device_index,
 
 
         if (color_image && depth_image) {
+            
+            current_capture_specifier++;
+            if (current_capture_specifier == NUM_OF_TEMPORAL_IMAGES) {
+                current_capture_specifier = 0;
+            }
 
             uint64_t color_image_timestamp = k4a_image_get_device_timestamp_usec(color_image);
             uint64_t depth_image_timestamp = k4a_image_get_device_timestamp_usec(depth_image);
@@ -239,9 +278,9 @@ int do_recording(uint8_t device_index,
             uint32_t size = k4a_image_get_size(color_image);
 
             FILE * pFile;
-            char filename_buffer[50];
+            char filename_buffer[100];
 
-            sprintf (filename_buffer, "/mnt/mrob_tmpfs/%s_color.jpg", serial_number_buffer);
+            sprintf (filename_buffer, "%s%d.jpg", color_images_pathname_buffer, current_capture_specifier);
             pFile = fopen (filename_buffer, "w");
 
             if (pFile!=NULL)
@@ -253,7 +292,7 @@ int do_recording(uint8_t device_index,
             buffer = k4a_image_get_buffer(depth_image);
             size = k4a_image_get_size(depth_image);
 
-            sprintf (filename_buffer, "/mnt/mrob_tmpfs/%s_depth.bin", serial_number_buffer);
+            sprintf (filename_buffer, "%s%d.bin", depth_images_pathname_buffer, current_capture_specifier);
             pFile = fopen (filename_buffer, "w");
 
             if (pFile!=NULL)

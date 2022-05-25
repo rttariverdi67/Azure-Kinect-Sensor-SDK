@@ -19,6 +19,7 @@ int do_recording(uint8_t device_index,
                  bool record_imu,
                  int32_t absoluteExposureValue,
                  int32_t gain,
-                 char *timestamps_table_filename);
+                 char *timestamps_table_filename,
+                 bool save_all_captures);
 
 #endif /* RECORDER_H */
