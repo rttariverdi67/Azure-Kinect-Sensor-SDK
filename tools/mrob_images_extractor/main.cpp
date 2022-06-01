@@ -326,7 +326,7 @@ int main(int argc, char **argv)
     {
         printf("Usage: mrob_images_extractor input.mkv output_path 0\n");
         printf("   or: mrob_images_extractor input.mkv output_path 1\n");
-        printf("where -e means extract only, -p means extract, undistort, and project depth to color\n");
+        printf("where 0 means extract only, 1 means extract, undistort, and project depth to color\n");
     }
     else
     {
