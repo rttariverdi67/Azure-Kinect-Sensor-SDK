@@ -19,6 +19,8 @@
 #include <functional>
 #include <vector>
 
+#include "cmdparser.h"
+
 #define MAX_NUMBER_OF_CAPTURES 259200
 #define CAPTURES_IN_BATCH 256
 
@@ -320,26 +322,55 @@ static int playback(char *input_path, const char * output_path, bool undist_proj
 
 int main(int argc, char **argv)
 {
+    int extraction_mode = 0;
     int return_code = 0;
 
-    if (argc != 4)
+    CmdParser::OptionParser cmd_parser;
+    cmd_parser.RegisterOption("-h|--help", "Prints this help", [&]() {
+        printf("mrob_images_extractor [options] input.mkv output_path\n");
+        //std::cout << "k4arecorder [options] output.mkv" << std::endl << std::endl;
+        cmd_parser.PrintOptions();
+        exit(0);
+    });
+    cmd_parser.RegisterOption("--mode",
+                              "Specify extraction mode (default: 0).\n"
+                              "0 - extraction only\n"
+                              "1 - extraction, undistortion, depth to color frame projection.",
+                              1,
+                              [&](const std::vector<char *> &args) {
+                              extraction_mode = std::stoi(args[0]);
+                              if (extraction_mode < 0 || extraction_mode > 1) {
+                                  std::ostringstream str;
+                                  str << "Mode " << extraction_mode <<" is unknown. Must lie in [0,1]";
+                                  throw std::runtime_error(str.str());
+                                  }
+                              });
+
+    int args_left = 0;
+    try
     {
-        printf("Usage: mrob_images_extractor input.mkv output_path 0\n");
-        printf("   or: mrob_images_extractor input.mkv output_path 1\n");
-        printf("where 0 means extract only, 1 means extract, undistort, and project depth to color\n");
+        args_left = cmd_parser.ParseCmd(argc, argv);
+    }
+    catch (CmdParser::ArgumentError &e)
+    {
+        std::cerr << e.option() << ": " << e.what() << std::endl;
+        return 1;
+    }
+    if (args_left == 2)
+    {
+        if (extraction_mode == 0) {
+            return_code = playback(argv[argc - 2], argv[argc -1], false);
+        }
+        else if (extraction_mode == 1) {
+            return_code = playback(argv[argc - 2], argv[argc -1], true);
+        }
     }
     else
     {
-        if (argv[3][0] == '0') {
-            return_code = playback(argv[1], argv[2], false);
-        }
-        else if (argv[3][0] == '1') {
-            return_code = playback(argv[1], argv[2], true);
-        }
-        else {
-            printf("Incorrect argument %s\n", argv[3]);
-            return 1;
-        }
+        printf("mrob_images_extractor [options] input.mkv output_path\n");
+        cmd_parser.PrintOptions();
+        return 1;
     }
+
     return return_code;
 }
