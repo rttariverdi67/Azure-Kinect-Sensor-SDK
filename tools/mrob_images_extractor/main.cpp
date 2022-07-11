@@ -144,7 +144,7 @@ bool extract(k4a_capture_t capture, const char * output_path, k4a_transformation
             printf("Failed to compute transformed depth image\n");
             return false;
         }
-
+        try {
         buffer = k4a_image_get_buffer(color_image);
         size = k4a_image_get_size(color_image);
 
@@ -158,6 +158,10 @@ bool extract(k4a_capture_t capture, const char * output_path, k4a_transformation
         img_array = cv::Mat(color_image_height_pixels, color_image_width_pixels, CV_16UC1, buffer);
         cv::undistort(img_array, img_array_undistorted, matrix, distortion);
         cv::imwrite(depth_filename,  img_array_undistorted);
+        }
+        catch (...) {
+            printf("Problem catched!\n");
+        }
     }
 
     if (depth_image != NULL)
